@@ -6,6 +6,7 @@ export type Chemical = {
   aliases: string[];
   cas: string;
   note: string;
+  tags?: string[];  // 附加标签：易制爆 / 易制毒（第X类）
 };
 
 export type MatchType =
@@ -22,7 +23,16 @@ export type ScoredChemical = Chemical & {
   isPriority: boolean;   // 是否优先匹配（精确命中）
   needsReview: boolean;  // 是否需进一步人工判断（混合物/类属/浓度）
   advice: string;        // 判断建议
+  categoryDisplay: string; // 类别展示（剧毒 / 易制爆 / 易制毒 等叠加）
 };
+
+// 生成类别展示文本：note（剧毒）+ tags（易制爆/易制毒）用 / 连接
+function buildCategory(item: Chemical): string {
+  const parts: string[] = [];
+  if (item.note === "剧毒") parts.push("剧毒");
+  if (item.tags) parts.push(...item.tags);
+  return parts.join(" / ");
+}
 
 const data = chemicals as Chemical[];
 
@@ -94,6 +104,7 @@ export function searchChemicals(query: string): ScoredChemical[] {
       isPriority,
       needsReview: review,
       advice: makeAdvice(matchType, review),
+      categoryDisplay: buildCategory(item),
     });
   }
 

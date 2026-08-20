@@ -16,6 +16,7 @@ type ScoredChemical = Chemical & {
   isPriority: boolean;
   needsReview: boolean;
   advice: string;
+  categoryDisplay: string;
 };
 
 type BatchResult = {
@@ -26,53 +27,79 @@ type BatchResult = {
 };
 
 const th: React.CSSProperties = {
-  background: "#2563eb", color: "#fff", fontWeight: 700, fontSize: 13,
-  textAlign: "left", padding: "11px 14px", whiteSpace: "nowrap",
+  background: "#f8fafc", color: "#475569", fontWeight: 600, fontSize: 13,
+  textAlign: "left", padding: "10px 14px", whiteSpace: "nowrap",
+  borderBottom: "1px solid #e2e8f0",
 };
 const td: React.CSSProperties = {
-  padding: "12px 14px", fontSize: 13, color: "#1f2937",
-  borderTop: "1px solid #e5e7eb", verticalAlign: "top", lineHeight: 1.6,
+  padding: "14px", fontSize: 13, color: "#1f2937",
+  borderTop: "1px solid #f1f5f9", verticalAlign: "top", lineHeight: 1.5,
 };
 
-// 单个条目表格（含匹配方式、判断建议）
+// 紧凑型专业查询表格
 function ResultTable({ items }: { items: ScoredChemical[] }) {
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
         <thead>
           <tr>
-            <th style={{ ...th, width: 56 }}>序号</th>
-            <th style={{ ...th, width: "24%" }}>品名</th>
-            <th style={{ ...th, width: "22%" }}>别名</th>
-            <th style={{ ...th, width: "13%" }}>CAS号</th>
-            <th style={{ ...th, width: 56 }}>类别</th>
+            <th style={{ ...th, width: "26%" }}>品名</th>
+            <th style={{ ...th, width: "18%" }}>CAS号 / 别名</th>
+            <th style={{ ...th, width: "16%" }}>类别</th>
             <th style={{ ...th, width: "13%" }}>匹配方式</th>
-            <th style={{ ...th, width: "17%" }}>判断建议</th>
+            <th style={{ ...th, width: "27%" }}>判断建议</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
-            <tr key={item.id}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+          {items.map((item, idx) => (
+            <tr key={`${item.id}-${idx}`}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f6faff")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-              <td style={{ ...td, color: "#6b7280" }}>{item.id}</td>
-              <td style={{ ...td, fontWeight: 600 }}>{item.name}</td>
-              <td style={td}>{item.aliases.join("；")}</td>
-              <td style={{ ...td, fontFamily: "monospace" }}>{item.cas}</td>
+              {/* 品名 + 目录序号 */}
               <td style={td}>
-                {item.note === "剧毒" && (
-                  <span title="该标签对应当前目录条目，不代表输入产品本身已被判定为剧毒"
-                    style={{ color: "#dc2626", fontWeight: 700, cursor: "help" }}>剧毒</span>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#182230", lineHeight: 1.4 }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: "#98a2b3", marginTop: 3 }}>目录序号 {item.id}</div>
+              </td>
+              {/* CAS + 别名 */}
+              <td style={td}>
+                {item.cas && <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, color: "#344054" }}>{item.cas}</div>}
+                {item.aliases.length > 0 && <div style={{ fontSize: 12, color: "#667085", marginTop: 3 }}>{item.aliases.join("；")}</div>}
+              </td>
+              {/* 类别标签 */}
+              <td style={td}>
+                {item.categoryDisplay && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {item.categoryDisplay.split(" / ").map((tag) => (
+                      <span key={tag} style={{
+                        display: "inline-block", fontSize: 11, padding: "3px 8px", borderRadius: 5,
+                        fontWeight: 600, whiteSpace: "nowrap",
+                        background: tag.includes("剧毒") ? "#fef2f2" : tag.includes("易制爆") ? "#fef3f2" : "#eff4ff",
+                        color: tag.includes("剧毒") ? "#dc2626" : tag.includes("易制爆") ? "#d92d20" : "#3538cd",
+                        border: `1px solid ${tag.includes("剧毒") ? "#fecaca" : tag.includes("易制爆") ? "#fecdca" : "#d1e0ff"}`
+                      }}>{tag}</span>
+                    ))}
+                  </div>
                 )}
               </td>
+              {/* 匹配方式 */}
               <td style={td}>
                 <span style={{
-                  display: "inline-block", fontSize: 12, padding: "2px 8px", borderRadius: 6,
+                  display: "inline-block", fontSize: 12, padding: "3px 8px", borderRadius: 5,
                   background: item.isPriority ? "#dcfce7" : "#f1f5f9",
-                  color: item.isPriority ? "#15803d" : "#475569", fontWeight: 600
-                }}>{item.matchLabel}</span>
+                  color: item.isPriority ? "#15803d" : "#475569", fontWeight: 600, whiteSpace: "nowrap"
+                }}>{item.isPriority ? "✓ " : ""}{item.matchLabel}</span>
               </td>
-              <td style={{ ...td, fontSize: 12, color: item.needsReview ? "#b45309" : "#64748b" }}>{item.advice}</td>
+              {/* 判断建议 */}
+              <td style={td}>
+                {item.needsReview ? (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#b45309" }}>⚠ 需进一步核验</div>
+                    <div style={{ fontSize: 11, color: "#98a2b3", marginTop: 2, lineHeight: 1.5 }}>涉及浓度或类属判断</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "#475569" }}>{item.advice}</div>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -92,6 +119,11 @@ function SectionHead({ color, title, desc }: { color: string; title: string; des
       {desc && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4, lineHeight: 1.6 }}>{desc}</div>}
     </div>
   );
+}
+
+// 判断查询词是否带规格/浓度/条件信息（方括号、＞、≤、含量等）
+function hasSpecInfo(q: string): boolean {
+  return /[\[［【\(（]|[＞＜≥≤]|含量|浓度|溶液|规格/.test(q);
 }
 
 function parseInput(text: string): string[] {
@@ -173,7 +205,7 @@ export default function Home() {
         rows.push([r.query, "暂未检索到", "", "", "", "", "", "", "", "建议核对SDS、CAS号、成分及含量"]);
       } else {
         for (const item of r.results) {
-          rows.push([r.query, "匹配到目录条目", String(item.id), item.name, item.aliases.join("；"), item.cas, item.note, item.matchLabel, item.isPriority ? "是" : "否", item.advice]);
+          rows.push([r.query, "匹配到目录条目", String(item.id), item.name, item.aliases.join("；"), item.cas, item.categoryDisplay, item.matchLabel, item.isPriority ? "是" : "否", item.advice]);
         }
       }
     }
@@ -438,11 +470,31 @@ export default function Home() {
             </div>
 
             <div style={{ padding: "18px" }}>
+              {/* 规格差异提醒 */}
+              {hasSpecInfo(r.query) && r.found && (
+                <div style={{
+                  marginBottom: 14, padding: "10px 14px", borderRadius: 8,
+                  background: "#fffbeb", border: "1px solid #fde68a",
+                  fontSize: 12.5, color: "#92400e", lineHeight: 1.6
+                }}>
+                  ⚠ 查询词包含规格/浓度信息，目录中可能存在多个不同规格的同名条目，请核对具体条件。
+                </div>
+              )}
+
               {/* 优先匹配 */}
               {priority.length > 0 && (
                 <div style={{ marginBottom: 20 }}>
-                  <SectionHead color="#16a34a" title="优先匹配结果" desc="以下条目与查询词精确对应，可作为优先核对依据。" />
-                  <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #bbf7d0", background: "#f0fdf4" }}>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ width: 4, height: 16, borderRadius: 2, background: "#16a34a" }} />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>找到 {priority.length} 条优先匹配结果</span>
+                      <span style={{ fontSize: 12, color: "#667085" }}>搜索词：{r.query}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#667085", marginTop: 5, lineHeight: 1.6 }}>
+                      相同 CAS 号可能对应不同浓度、形态或类属条件，请结合实际产品进一步判断。
+                    </div>
+                  </div>
+                  <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0" }}>
                     <ResultTable items={priority} />
                   </div>
                 </div>
@@ -452,7 +504,7 @@ export default function Home() {
               {review.length > 0 && (
                 <div style={{ marginBottom: 20 }}>
                   <SectionHead color="#d97706" title="需结合成分 / 浓度进一步判断" desc="以下条目涉及混合物、浓度或类属判断，仅凭名称不能直接下结论。" />
-                  <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #fde68a", background: "#fffbeb" }}>
+                  <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #e2e8f0" }}>
                     <ResultTable items={review} />
                   </div>
                 </div>
