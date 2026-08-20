@@ -26,11 +26,18 @@ export type ScoredChemical = Chemical & {
   categoryDisplay: string; // 类别展示（剧毒 / 易制爆 / 易制毒 等叠加）
 };
 
+// 是否为 2828 油漆涂料子条目
+function is2828Item(item: Chemical): boolean {
+  return item.id >= 2828001 && item.id <= 2828999;
+}
+
 // 生成类别展示文本：note（剧毒）+ tags（易制爆/易制毒）用 / 连接
 function buildCategory(item: Chemical): string {
   const parts: string[] = [];
   if (item.note === "剧毒") parts.push("剧毒");
   if (item.tags) parts.push(...item.tags);
+  // 2828 子条目统一标注易燃液体（2828品类均属易燃液体类）
+  if (is2828Item(item)) parts.push("易燃液体");
   return parts.join(" / ");
 }
 
@@ -68,22 +75,45 @@ function makeAdvice(matchType: MatchType, review: boolean): string {
   return "仅名称相关，谨慎判断";
 }
 
+// 2828 子条目：把完整危险性类别说明拼进建议，便于直接查看
+function makeAdviceFull(item: Chemical, matchType: MatchType, review: boolean): string {
+  const base = makeAdvice(matchType, review);
+  if (is2828Item(item) && item.note) return `${base}；${item.note}`;
+  return base;
+}
+
+// 标点归一化：中文标点 → 英文标点，去掉所有空白，便于用户输入中文标点也能匹配
+function normalizePunct(s: string): string {
+  const map: Record<string, string> = {
+    "，": ",", "，": ",", "、": ",",
+    "。": ".", "．": ".", "·": ".",
+    "－": "-", "–": "-", "—": "-", "﹣": "-", "−": "-",
+    "（": "(", "）": ")", "［": "[", "］": "]",
+    "【": "[", "】": "]", "％": "%", "：": ":", "；": ";",
+    "＋": "+", "／": "/",
+  };
+  return s
+    .toLowerCase()
+    .replace(/[，、。．·－–—﹣−（）［］【】％：；＋／]/g, (c) => map[c] ?? c)
+    .replace(/\s+/g, "");
+}
+
 export function searchChemicals(query: string): ScoredChemical[] {
-  const q = query.trim().toLowerCase();
+  const q = normalizePunct(query.trim());
   if (!q) return [];
 
   // 去掉方括号标注，如“乙醇[无水]”→“乙醇”，用于提升精确匹配命中率
-  const strip = (s: string) => s.toLowerCase().replace(/\s*[\[［【\(（][^\]］】\)）]*[\]］】\)）]\s*/g, "").trim();
-  const qStripped = strip(q);
+  const strip = (s: string) => normalizePunct(s).replace(/\s*[\[［【\(（][^\]］】\)）]*[\]］】\)）]\s*/g, "").trim();
+  const qStripped = strip(query);
 
   const results: ScoredChemical[] = [];
 
   for (const item of data) {
     let matchType: MatchType | null = null;
-    const name = item.name.toLowerCase();
+    const name = normalizePunct(item.name);
     const nameStripped = strip(item.name);
-    const cas = (item.cas || "").toLowerCase();
-    const aliases = (item.aliases || []).map((a) => a.toLowerCase());
+    const cas = normalizePunct(item.cas || "");
+    const aliases = (item.aliases || []).map((a) => normalizePunct(a));
 
     // 按优先级判断匹配方式（命中即取最高优先级）
     if (cas && cas === q) matchType = "cas-exact";
@@ -103,7 +133,7 @@ export function searchChemicals(query: string): ScoredChemical[] {
       matchLabel: MATCH_LABEL[matchType],
       isPriority,
       needsReview: review,
-      advice: makeAdvice(matchType, review),
+      advice: makeAdviceFull(item, matchType, review),
       categoryDisplay: buildCategory(item),
     });
   }
