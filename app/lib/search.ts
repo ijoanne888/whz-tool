@@ -85,7 +85,7 @@ function makeAdviceFull(item: Chemical, matchType: MatchType, review: boolean): 
 // 标点归一化：中文标点 → 英文标点，去掉所有空白，便于用户输入中文标点也能匹配
 function normalizePunct(s: string): string {
   const map: Record<string, string> = {
-    "，": ",", "，": ",", "、": ",",
+    "，": ",", "、": ",",
     "。": ".", "．": ".", "·": ".",
     "－": "-", "–": "-", "—": "-", "﹣": "-", "−": "-",
     "（": "(", "）": ")", "［": "[", "］": "]",
